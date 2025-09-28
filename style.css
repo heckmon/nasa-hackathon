@@ -1,0 +1,58 @@
+:root {
+ --glowStartColor : #0077ff;
+ --glowEndColor: #00eaff;
+}
+
+#show-details {
+    display: none;
+    position: absolute;
+    background-color: #00000080;
+    border-radius: 20px;
+}
+
+#show-details h2 {
+    padding-left: 20px;
+    padding-right: 20px;
+    -webkit-animation: glow 1s ease-in-out infinite alternate;
+    -moz-animation: glow 1s ease-in-out infinite alternate;
+    animation: glow 1s ease-in-out infinite alternate;
+}
+
+#show-details p {
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+@-webkit-keyframes glow {
+  from {
+    text-shadow:
+        0 0 1px #fff,
+        0 0 2px #fff,
+        0 0 4px var(--glowStartColor),
+        0 0 6px var(--glowStartColor);
+    }
+  to {
+    text-shadow:
+        0 0 2px #fff,
+        0 0 4px var(--glowEndColor),
+        0 0 8px var(--glowEndColor),
+        0 0 12px var(--glowEndColor);
+    }
+}
+
+@keyframes glow {
+  from {
+    text-shadow:
+        0 0 1px #fff,
+        0 0 2px #fff,
+        0 0 4px var(--glowStartColor),
+        0 0 6px var(--glowStartColor);
+    }
+  to {
+    text-shadow:
+        0 0 2px #fff,
+        0 0 4px var(--glowEndColor),
+        0 0 8px var(--glowEndColor),
+        0 0 12px var(--glowEndColor);
+    }
+}
