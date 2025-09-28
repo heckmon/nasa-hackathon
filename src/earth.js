@@ -12,11 +12,11 @@ const earthMaterial = new THREE.MeshPhongMaterial({
 const cloudsMesh = new THREE.Mesh(
     earthGeometry,
     new THREE.MeshStandardMaterial({
-        map: loader.load("./assets/textures/8k_earth_clouds.jpg"),
+        map: loader.load("./assets/textures/8k_earth_clouds-min.jpg"),
         transparent: true,
         opacity: 0.8,
         blending: THREE.AdditiveBlending,
-        alphaMap: loader.load("./assets/textures/8k_earth_clouds.jpg"),
+        alphaMap: loader.load("./assets/textures/8k_earth_clouds-min.jpg"),
     })
 );
 
