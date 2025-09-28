@@ -6,7 +6,7 @@ earthGroup.rotation.z = -23.4 * Math.PI / 180;
 
 const earthGeometry = new THREE.SphereGeometry(5);
 const earthMaterial = new THREE.MeshPhongMaterial({
-  map: loader.load("../assets/textures/earth.png")
+  map: loader.load("./assets/textures/earth.png")
 });
 
 const cloudsMesh = new THREE.Mesh(
