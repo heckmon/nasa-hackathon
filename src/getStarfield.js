@@ -1,8 +1,7 @@
 import * as THREE from "three";
 
-export default function getStarfield({ numStars = 500 } = {}) {
+export default function getStarfield({ numStars = 500,  radius = 2000} = {}) {
   function randomSpherePoint() {
-    const radius = Math.random() * 200 + 200;
     const u = Math.random();
     const v = Math.random();
     const theta = 2 * Math.PI * u;
@@ -33,7 +32,7 @@ export default function getStarfield({ numStars = 500 } = {}) {
   geo.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3));
   geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
   const mat = new THREE.PointsMaterial({
-    size: 1,
+    size: 2.5,
     vertexColors: true,
     transparent: true,
     map: new THREE.TextureLoader().load(

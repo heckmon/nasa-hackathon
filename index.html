@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <title>Space Sim</title>
 </head>
 <body>
@@ -15,11 +16,32 @@
         }
     }
     </script>
-    <script type="module" src="./script.js"></script>
+
+    <div class="navbar">
+        <h1>Lunar Way</h1>
+        <nav>
+            <a href="#">Data</a>
+            <a href="https://github.com/heckmon/nasa-hackathon">Source code</a>
+            <a href="#">About Us</a>
+        </nav>
+        <p class="fas fa-bars" id="bars"></p>
+    </div>
+    <div class="fas fa-tools tools"></div>
+    <div class="tool-menu">
+        <ul>
+            <li>
+                <div>
+                    <p>Planet Revolution</p>
+                </div>
+            </li>
+        </ul>
+        
+    </div>
+    <div id="sidebar"></div>
     <div id="show-details"></div>
-    <!-- <div>
-        <canvas class="simulator">
-        </canvas>
-    </div> -->
+    <div class="simulator">
+        <script type="module" src="./script.js"></script>
+    </div>
+    <div id="show-name"></div>
 </body>
 </html>

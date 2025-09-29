@@ -1,58 +1,173 @@
-:root {
- --glowStartColor : #0077ff;
- --glowEndColor: #00eaff;
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&display=swap');
+
+.navbar {
+    position: absolute;
+    top: 0;
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    height: 10%;
+    background-color: #00000080;
 }
 
-#show-details {
+ .navbar h1{
+    font-family: 'Orbitron', sans-serif;
+    padding: 0 0 10px 15px;
+    text-shadow:
+      0 0 0.5px #fff,
+      0 0 1px #fff,
+ }
+
+ .navbar nav {
+    margin-left: auto;
+    display: flex;
+    flex-direction: row;
+    gap: 2em;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.2em;
+    padding: 25px 3.5em 0 0;
+ }
+
+ .navbar nav a, #sidebar a {
+    text-decoration: none;
+    color: #fff;
+ }
+
+ .navbar nav a:hover, #sidebar a:hover, #bars:hover, .tools:hover {
+    text-shadow:
+      0 0 0.5px #fff,
+      0 0 1px #fff,
+      0 0 1.5px #fff,
+      0 0 2px #fff;
+ }
+
+#sidebar {
+    position: fixed;
+    top: 0;
+    right: -100vw;
+    display: flex;
+    flex-direction: column;
+    width: 70vw;
+    max-width: 350px;
+    height: 100vh;
+    background: #000000af;
+    box-shadow: -4px 0 16px #000a;
+    transition: right 0.4s cubic-bezier(.4,0,.2,1);
+    z-index: 100;
+    padding: 2em 1.5em;
+    overflow-y: auto;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 20px;
+    gap: 10px;
+}
+
+#sidebar.open {
+    right: 0;
+}
+
+#bars {
+    display: none;
+}
+
+#bars.open {
+    position: absolute;
+    right: 0;
+    z-index: 101;
+}
+
+#show-name {
     display: none;
     position: absolute;
+}
+
+ #show-name h2 {
+    padding-left: 20px;
+    padding-right: 20px;
+    font-family: 'Orbitron', sans-serif;
+    color: #fff;
+    text-shadow:
+      0 0 0.5px #fff,
+      0 0 1.5px #0ff,
+      0 0 2.5px #0ff,
+      0 0 3.5px #0ff;
+
+ }
+
+ #show-name p {
+    padding-left: 20px;
+    padding-right: 20px;
+ }
+
+#show-details {
+    position: absolute;
+    display: none;
+    bottom: 0;
+    right: 0;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 500;
+}
+
+.tools {
+    color: white;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    cursor: pointer;
+    border-width: 1px;
+    border-color: #fff;
+    border-style: solid;
+    border-radius: 10px;
+    padding: 10px;
+    font-size: 40px;
+    margin-left: 30px;
+    margin-bottom: 30px;
     background-color: #00000080;
-    border-radius: 20px;
 }
 
-#show-details h2 {
-    padding-left: 20px;
-    padding-right: 20px;
-    -webkit-animation: glow 1s ease-in-out infinite alternate;
-    -moz-animation: glow 1s ease-in-out infinite alternate;
-    animation: glow 1s ease-in-out infinite alternate;
+.tool-menu {
+    display: none;
+    position: absolute;
+    bottom: 70px;
+    left: 70px;
+    background-color: #10212f80;
+    margin-left: 20px;
+    margin-bottom: 20px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 18px;
+    padding: 10px;
+    border-radius: 15px;
+    border-width: 0.2px;
+    border-color: #6cf5f1;
+    border-style: solid;
 }
 
-#show-details p {
-    padding-left: 20px;
-    padding-right: 20px;
+.tool-menu ul {
+    list-style-type: none;
 }
 
-@-webkit-keyframes glow {
-  from {
-    text-shadow:
-        0 0 1px #fff,
-        0 0 2px #fff,
-        0 0 4px var(--glowStartColor),
-        0 0 6px var(--glowStartColor);
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+@media (max-width: 768px) {
+    .navbar nav {
+        display: none;
     }
-  to {
-    text-shadow:
-        0 0 2px #fff,
-        0 0 4px var(--glowEndColor),
-        0 0 8px var(--glowEndColor),
-        0 0 12px var(--glowEndColor);
-    }
-}
 
-@keyframes glow {
-  from {
-    text-shadow:
-        0 0 1px #fff,
-        0 0 2px #fff,
-        0 0 4px var(--glowStartColor),
-        0 0 6px var(--glowStartColor);
-    }
-  to {
-    text-shadow:
-        0 0 2px #fff,
-        0 0 4px var(--glowEndColor),
-        0 0 8px var(--glowEndColor),
-        0 0 12px var(--glowEndColor);
+    #bars {
+        display: block;
+        margin-left: auto;
+        padding: 15px 2em 0 0;
+        cursor: pointer;
+        font-size: 1.2em;
     }
 }
