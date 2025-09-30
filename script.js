@@ -22,16 +22,21 @@ const nameField = document.getElementById("show-name");
 const detailsField = document.getElementById("show-details");
 const hamBars = document.getElementById("bars");
 const sideBar = document.getElementById("sidebar");
+const tools = document.getElementById("tools");
+const toolMenu = document.querySelector('.tool-menu');
+const revolutionToggle = document.getElementById('planet-revolution-toggle');
 
-/* const mercuryOrbit = 58;
-const venusOrbit = 108;
-const earthOrbit = 150;
-const marsOrbit = 228;
+let isRevolve = false
 
-let mercuryAngle = 0;
-let venusAngle = 0;
-let earthAngle = 0;
-let marsAngle = 0; */
+const planetOrbits = [
+  { mesh: mercuryMesh, radius: 300, speed: 0.008, angle: 0 },
+  { mesh: venusMesh,   radius: 500, speed: 0.003, angle: 0 },
+  { mesh: marsMesh,    radius: 800, speed: 0.0015, angle: 0 },
+  { mesh: jupiterMesh, radius: 1200, speed: 0.0005, angle: 0 },
+  { mesh: saturnMesh,  radius: 1550, speed: 0.0002, angle: 0 },
+  { mesh: uranusMesh,  radius: 1950, speed: 0.00008, angle: 0 },
+  { mesh: neptuneMesh, radius: 2350, speed: 0.00003, angle: 0 }
+];
 
 const meshMap = new Map();
 
@@ -111,15 +116,15 @@ bloomComposer.renderToScreen = true;
 bloomComposer.addPass(renderScene);
 bloomComposer.addPass(bloomPass);
 
-sunMesh.position.set(-600, 0, 0);
 earthGroup.position.set(0, 0, 0);
-mercuryMesh.position.set(-143, 0, 0);
-venusMesh.position.set(-52, 0, 0);
-marsMesh.position.set(128, 0, 0);
-jupiterMesh.position.set(328, 0, 0);
-saturnMesh.position.set(628, 0, 0);
-uranusMesh.position.set(1513, 0, 0);
-neptuneMesh.position.set(2417, 0, 0);
+sunMesh.position.set(-600, 0, 0);
+mercuryMesh.position.set(-300, 0, 0);
+venusMesh.position.set(-100, 0, 0);
+marsMesh.position.set(200, 0, 0);
+jupiterMesh.position.set(600, 0, 0);
+saturnMesh.position.set(950, 0, 0);
+uranusMesh.position.set(1350, 0, 0);
+neptuneMesh.position.set(1750, 0, 0);
 
 scene.add(mercuryMesh);
 scene.add(venusMesh);
@@ -134,22 +139,15 @@ camera.position.z = 50;
 camera.lookAt(earthGroup.position);
 
 function animate() {
-  /* mercuryAngle += 0.04;
-  venusAngle += 0.015;
-  earthAngle += 0.01;
-  marsAngle += 0.008;
-
-  mercuryMesh.position.x = sunMesh.position.x + Math.cos(mercuryAngle) * mercuryOrbit;
-  mercuryMesh.position.z = sunMesh.position.z + Math.sin(mercuryAngle) * mercuryOrbit;
-  
-  venusMesh.position.x = sunMesh.position.x + Math.cos(venusAngle) * venusOrbit;
-  venusMesh.position.z = sunMesh.position.z + Math.sin(venusAngle) * venusOrbit;
-
-  earthGroup.position.x = sunMesh.position.x + Math.cos(earthAngle) * earthOrbit;
-  earthGroup.position.z = sunMesh.position.z + Math.sin(earthAngle) * earthOrbit;
-
-  marsMesh.position.x = sunMesh.position.x + Math.cos(marsAngle) * marsOrbit;
-  marsMesh.position.z = sunMesh.position.z + Math.sin(marsAngle) * marsOrbit; */
+  if (isRevolve) {
+    planetOrbits.forEach(planet => {
+    if (planet.radius > 0) {
+      planet.angle += planet.speed;
+      planet.mesh.position.x = Math.cos(planet.angle) * planet.radius + sunMesh.position.x;
+      planet.mesh.position.z = Math.sin(planet.angle) * planet.radius ;
+    }
+  });
+  }
 
   earthMesh.rotation.y += 0.005;
   cloudsMesh.rotation.y += 0.005;
@@ -161,13 +159,6 @@ function animate() {
   uranusMesh.rotation.y += 0.005;
   neptuneMesh.rotation.y += 0.005;
   stars.rotation.y -= 0.0005;
-  /* if (!isDown) {
-    camera.position.x = earthGroup.position.x + 0;
-    camera.position.y = earthGroup.position.y + 20;
-    camera.position.z = earthGroup.position.z + 50;
-    camera.lookAt(earthGroup.position);
-    controls.target.copy(earthGroup.position);
-  } */
   controls.update();
   bloomComposer.render();
 }
@@ -181,6 +172,11 @@ function handleWindowResize () {
 }
 
 function onPointerClick(event){
+
+  if (!toolMenu.contains(event.target) && event.target !== tools) {
+    toolMenu.style.display = "none";
+  }
+
   pointer.x = ( event.clientX / window.innerWidth ) * 2 - 1;
 	pointer.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
 
@@ -224,4 +220,12 @@ hamBars.addEventListener('click', ()=>{
     hamBars.classList.remove('fa-close');
     hamBars.classList.add('fa-bars');
   }
+});
+
+tools.addEventListener('click', ()=>{
+  toolMenu.style.display = "block";
+});
+
+revolutionToggle.addEventListener('change', (e) => {
+  isRevolve = e.target.checked;
 });
