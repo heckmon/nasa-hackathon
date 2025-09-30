@@ -1,12 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="./style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <title>Lunar Way-Space Sim</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <title>Lunar Way-Simulation</title>
 </head>
+
 <body>
     <script type="importmap">
         {
@@ -33,12 +37,23 @@
     <div class="tool-menu">
         <div class="tool-item">
             <p>Planet Revolution</p>
+            <p></p>
             <label class="switch">
-            <input type="checkbox" id="planet-revolution-toggle" title="Toggle planet revolution">
-            <span class="slider"></span>
+                <input type="checkbox" id="planet-revolution-toggle" title="Toggle planet revolution">
+                <span class="slider"></span>
             </label>
         </div>
+        <!-- <div class="tool-item">
+        </div> -->
         <div class="tool-item">
+            <p>Color-Blind Mode</p>
+            <label class="switch">
+                <input type="checkbox" id="color-blind-toggle" title="Toggle color-blind mode">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div id="google_translate_wrapper" style="margin-top: 10px;">
+            <div id="google_translate_element"></div>
         </div>
     </div>
     <div id="sidebar"></div>
@@ -46,6 +61,8 @@
     <div class="simulator">
         <script type="module" src="./script.js"></script>
     </div>
+
     <div id="show-name"></div>
 </body>
+
 </html>
