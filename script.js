@@ -28,7 +28,13 @@ window.onload = async () => {
   }
 };
 
-let near_today = near_items["near_earth_objects"][today];
+let near_today;
+try{
+  near_items["near_earth_objects"][today];
+}
+catch(e) {
+  near_items = {}
+}
 
 for (let i = 0; i < near_today.length; i++) {
   const asteroidId = near_today[i]["id"];
