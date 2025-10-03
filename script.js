@@ -3,8 +3,6 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { FontLoader } from 'three/addons/loaders/FontLoader.js';
-import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { earthGroup, earthMesh, cloudsMesh } from './src/earth.js';
 import { sunMesh } from './src/sun.js';
 import { mercuryMesh, venusMesh, marsMesh, jupiterMesh, saturnMesh, uranusMesh, neptuneMesh } from './src/planet.js';
@@ -17,49 +15,47 @@ let asteroid_coordinates = [];
 
 window.onload = async () => {
   try {
-    if (!near_items || Object.keys(near_items["near_earth_objects"])[0] !== today) {
+    if (!near_items || !near_items["near_earth_objects"] || Object.keys(near_items["near_earth_objects"])[0] !== today) {
       const response = await fetch("https://nasa-hackathon-backend-two.vercel.app/near_items", { method: "POST" });
+      if (!response.ok) throw new Error("Failed to fetch near_items");
       near_items = await response.json();
-      window.localStorage.setItem('near_items', JSON.stringify(near_items))
+      window.localStorage.setItem('near_items', JSON.stringify(near_items));
     }
-  }
-  catch (e) {
 
+    let near_today = (near_items["near_earth_objects"] && near_items["near_earth_objects"][today]) || [];
+    let asteroid_coordinates = [];
+
+    for (let i = 0; i < near_today.length; i++) {
+      const asteroidId = near_today[i]["id"];
+      try {
+        const cached = window.localStorage.getItem(`asteroid_coord_${asteroidId}`);
+        if (cached) {
+          asteroid_coordinates.push([near_today[i], JSON.parse(cached)]);
+        } else {
+          const response = await fetch(
+            "https://nasa-hackathon-backend-two.vercel.app/coordinate",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: asteroidId })
+            }
+          );
+          if (!response.ok) throw new Error(`Failed to fetch coordinates for ${asteroidId}`);
+          const coord = await response.json();
+          window.localStorage.setItem(`asteroid_coord_${asteroidId}`, JSON.stringify(coord));
+          asteroid_coordinates.push([near_today[i], coord]);
+        }
+      } catch (e) {
+        console.error(`Asteroid ${asteroidId} coordinate fetch failed:`, e);
+      }
+    }
+
+  } catch (e) {
+    console.error("API error, simulation will continue with available data:", e);
   }
 };
 
-let near_today;
-try{
-  near_items["near_earth_objects"][today];
-}
-catch(e) {
-  near_items = {}
-}
-
-for (let i = 0; i < near_today.length; i++) {
-  const asteroidId = near_today[i]["id"];
-  const cached = window.localStorage.getItem(`asteroid_coord_${asteroidId}`);
-  if (cached) {
-    asteroid_coordinates.push([near_today[i], JSON.parse(cached)]);
-  } else {
-    fetch(
-      "https://nasa-hackathon-backend-two.vercel.app/coordinate",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: asteroidId })
-      }
-    )
-      .then(response => response.json())
-      .then(coord => {
-        window.localStorage.setItem(`asteroid_coord_${asteroidId}`, JSON.stringify(coord));
-        asteroid_coordinates.push([near_today[i], coord]);
-      });
-  }
-}
-
 const loader = new GLTFLoader();
-const fontLoader = new FontLoader();
 const scene = new THREE.Scene();
 const asteroidBelt = new THREE.Group();
 scene.add(asteroidBelt);
