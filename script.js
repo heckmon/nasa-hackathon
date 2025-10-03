@@ -3,6 +3,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { earthGroup, earthMesh, cloudsMesh } from './src/earth.js';
 import { sunMesh } from './src/sun.js';
 import { mercuryMesh, venusMesh, marsMesh, jupiterMesh, saturnMesh, uranusMesh, neptuneMesh } from './src/planet.js';
@@ -13,16 +15,16 @@ let near_items = JSON.parse(window.localStorage.getItem('near_items'));
 const today = new Date().toISOString().slice(0, 10);
 let asteroid_coordinates = [];
 
-window.onload = async ()=> {
-  try{
+window.onload = async () => {
+  try {
     if (!near_items || Object.keys(near_items["near_earth_objects"])[0] !== today) {
-      const response = await fetch("https://nasa-hackathon-backend-two.vercel.app/near_items", {method: "POST"});
+      const response = await fetch("https://nasa-hackathon-backend-two.vercel.app/near_items", { method: "POST" });
       near_items = await response.json();
       window.localStorage.setItem('near_items', JSON.stringify(near_items))
     }
   }
-  catch(e){
-    
+  catch (e) {
+
   }
 };
 
@@ -42,17 +44,16 @@ for (let i = 0; i < near_today.length; i++) {
         body: JSON.stringify({ id: asteroidId })
       }
     )
-    .then(response => response.json())
-    .then(coord => {
-      window.localStorage.setItem(`asteroid_coord_${asteroidId}`, JSON.stringify(coord));
-      asteroid_coordinates.push([near_today[i], coord]);
-    });
+      .then(response => response.json())
+      .then(coord => {
+        window.localStorage.setItem(`asteroid_coord_${asteroidId}`, JSON.stringify(coord));
+        asteroid_coordinates.push([near_today[i], coord]);
+      });
   }
 }
 
-console.log(asteroid_coordinates);
-
 const loader = new GLTFLoader();
+const fontLoader = new FontLoader();
 const scene = new THREE.Scene();
 const asteroidBelt = new THREE.Group();
 scene.add(asteroidBelt);
@@ -183,6 +184,20 @@ scene.add(uranusMesh);
 scene.add(neptuneMesh);
 scene.add(sunMesh);
 
+for(let i=0; i<asteroid_coordinates.length; i++){
+  loader.load(
+    "https://assets.science.nasa.gov/content/dam/science/psd/solar/2023/09/b/Bennu_1_1.glb?emrc=68e007a5963a2", (gltf) => {
+    const model = gltf.scene;
+    model.position.set(
+      asteroid_coordinates[i][1]['x'] * 1000 * 2,
+      asteroid_coordinates[i][1]['y'] * 1000 * 2,
+      asteroid_coordinates[i][1]['z'] * 1000 * 2
+    );
+    model.scale.set(0.005, 0.005, 0.005);
+    scene.add(model);
+  });
+}
+
 camera.position.z = 50;
 camera.lookAt(earthGroup.position);
 
@@ -213,7 +228,7 @@ function animate() {
   bloomComposer.render();
 }
 
-window.googleTranslateElementInit = function() {
+window.googleTranslateElementInit = function () {
   new google.translate.TranslateElement(
     {
       pageLanguage: 'en',
@@ -276,20 +291,6 @@ window.addEventListener('pointermove', () => {
   if (isDown) nameField.style.display = "none";
 });
 
-hamBars.addEventListener('click', () => {
-  sideBar.classList.toggle('open');
-  hamBars.classList.toggle('open');
-  if (hamBars.classList.contains('open')) {
-    hamBars.classList.remove('fa-bars');
-    hamBars.classList.add('fa-close');
-    sideBar.innerHTML = document.querySelector(".navbar nav").innerHTML;
-  }
-  else {
-    hamBars.classList.remove('fa-close');
-    hamBars.classList.add('fa-bars');
-  }
-});
-
 tools.addEventListener('click', () => {
   toolMenu.style.display = "block";
   document.getElementById('google_translate_element').style.display = "block";
@@ -298,42 +299,6 @@ tools.addEventListener('click', () => {
 revolutionToggle.addEventListener('change', (e) => {
   isRevolve = e.target.checked;
 });
-
-
-
-function createAsteroidBeltGLB(radius, count, glbPath) {
-  loader.load(glbPath, (gltf) => {
-    const model = gltf.scene;
-
-    for (let i = 0; i < count; i++) {
-      const asteroid = model.clone();
-
-
-      const angle = Math.random() * Math.PI * 2;
-      const distance = radius + (Math.random() - 0.5) * 200;
-      asteroid.position.set(
-        Math.cos(angle) * distance + sunMesh.position.x,
-        (Math.random() - 0.5) * 50,
-        Math.sin(angle) * distance
-      );
-
-
-      asteroid.rotation.set(
-        Math.random() * Math.PI,
-        Math.random() * Math.PI,
-        Math.random() * Math.PI
-      );
-
-
-      const scale = Math.random() * 0.05 + 0.01;
-      asteroid.scale.set(scale, scale, scale);
-
-      asteroidBelt.add(asteroid);
-    }
-  });
-}
-
-createAsteroidBeltGLB(3000, 50, './models/Bennu_1_1.glb');
 
 earthMesh.name = "earth";
 sunMesh.name = "sun";
