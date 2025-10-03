@@ -4,7 +4,11 @@
     -webkit-tap-highlight-color: transparent;
 }
 
-.navbar {
+html, body {
+  overflow: hidden;
+}
+
+/* .navbar {
     position: absolute;
     top: 0;
     display: flex;
@@ -56,7 +60,7 @@
       0 0 48px #00eaff;
     font-weight: bold;
     transition: color 0.2s, text-shadow 0.2s;
-}
+} */
 
 #sidebar {
     position: fixed;

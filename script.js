@@ -6,8 +6,52 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { earthGroup, earthMesh, cloudsMesh } from './src/earth.js';
 import { sunMesh } from './src/sun.js';
 import { mercuryMesh, venusMesh, marsMesh, jupiterMesh, saturnMesh, uranusMesh, neptuneMesh } from './src/planet.js';
-import getStarfield from './src/getStarfield.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import getStarfield from './src/getStarfield.js';
+
+let near_items = JSON.parse(window.localStorage.getItem('near_items'));
+const today = new Date().toISOString().slice(0, 10);
+let asteroid_coordinates = [];
+
+window.onload = async ()=> {
+  try{
+    if (!near_items || Object.keys(near_items["near_earth_objects"])[0] !== today) {
+      const response = await fetch("https://nasa-hackathon-backend-two.vercel.app/near_items", {method: "POST"});
+      near_items = await response.json();
+      window.localStorage.setItem('near_items', JSON.stringify(near_items))
+    }
+  }
+  catch(e){
+    
+  }
+};
+
+let near_today = near_items["near_earth_objects"][today];
+
+for (let i = 0; i < near_today.length; i++) {
+  const asteroidId = near_today[i]["id"];
+  const cached = window.localStorage.getItem(`asteroid_coord_${asteroidId}`);
+  if (cached) {
+    asteroid_coordinates.push([near_today[i], JSON.parse(cached)]);
+  } else {
+    fetch(
+      "https://nasa-hackathon-backend-two.vercel.app/coordinate",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: asteroidId })
+      }
+    )
+    .then(response => response.json())
+    .then(coord => {
+      window.localStorage.setItem(`asteroid_coord_${asteroidId}`, JSON.stringify(coord));
+      asteroid_coordinates.push([near_today[i], coord]);
+    });
+  }
+}
+
+console.log(asteroid_coordinates);
+
 const loader = new GLTFLoader();
 const scene = new THREE.Scene();
 const asteroidBelt = new THREE.Group();
@@ -150,8 +194,6 @@ function animate() {
         planet.angle += planet.speed;
         planet.mesh.position.x = Math.cos(planet.angle) * planet.radius + sunMesh.position.x;
         planet.mesh.position.z = Math.sin(planet.angle) * planet.radius;
-
-
       }
     });
 
@@ -170,7 +212,7 @@ function animate() {
   controls.update();
   bloomComposer.render();
 }
-// 1. Make the init function global to avoid linter warning
+
 window.googleTranslateElementInit = function() {
   new google.translate.TranslateElement(
     {
@@ -181,7 +223,6 @@ window.googleTranslateElementInit = function() {
     'google_translate_element'
   );
 };
-
 
 const translateScript = document.createElement('script');
 translateScript.type = 'text/javascript';
@@ -249,12 +290,9 @@ hamBars.addEventListener('click', () => {
   }
 });
 
-// tools.addEventListener('click', () => {
-//   toolMenu.style.display = "block";
-// });
 tools.addEventListener('click', () => {
   toolMenu.style.display = "block";
-  document.getElementById('google_translate_element').style.display = "block"; // show Google Translate widget
+  document.getElementById('google_translate_element').style.display = "block";
 });
 
 revolutionToggle.addEventListener('change', (e) => {
@@ -297,10 +335,6 @@ function createAsteroidBeltGLB(radius, count, glbPath) {
 
 createAsteroidBeltGLB(3000, 50, './models/Bennu_1_1.glb');
 
-
-
-
-
 earthMesh.name = "earth";
 sunMesh.name = "sun";
 mercuryMesh.name = "mercury";
@@ -311,29 +345,24 @@ saturnMesh.name = "saturn";
 uranusMesh.name = "uranus";
 neptuneMesh.name = "neptune";
 
-
 const colorPalette = {
-  sun: 0xffee88,       // soft yellow – still visible
-  earth: 0x3399ff,     // bright blue – safe
-  mercury: 0xaaaaaa,   // gray – safe
-  venus: 0xff99cc,     // pinkish – replaces orange, more distinguishable
-  mars: 0xff66cc,      // magenta – replaces red/orange
-  jupiter: 0xffcc66,   // light orange – distinguishable from yellow/green
-  saturn: 0xffeecc,    // pale yellow – safe
-  uranus: 0x66ccff,    // light cyan – safe
-  neptune: 0x6699ff,   // medium blue – safe
-  asteroid: 0xbbbbbb   // gray – safe
+  sun: 0xffee88,
+  earth: 0x3399ff,
+  mercury: 0xaaaaaa,
+  venus: 0xff99cc,
+  mars: 0xff66cc,
+  jupiter: 0xffcc66,
+  saturn: 0xffeecc,
+  uranus: 0x66ccff,
+  neptune: 0x6699ff,
+  asteroid: 0xbbbbbb
 };
-
-
 
 const originalMaterials = new Map();
 const paletteMaterials = new Map();
 
 [earthMesh, sunMesh, mercuryMesh, venusMesh, marsMesh, jupiterMesh, saturnMesh, uranusMesh, neptuneMesh].forEach(mesh => {
   originalMaterials.set(mesh, mesh.material);
-
-  // Clone material and set color from the new general palette
   const mat = mesh.material.clone();
   mat.color.set(colorPalette[mesh.name.toLowerCase()] || 0xffffff);
   paletteMaterials.set(mesh, mat);
@@ -351,7 +380,7 @@ function applyColorPaletteMode(enable) {
   });
 }
 
-const colorPaletteToggle = document.getElementById('color-blind-toggle'); // keep same toggle
+const colorPaletteToggle = document.getElementById('color-blind-toggle');
 colorPaletteToggle.addEventListener('change', (e) => {
   applyColorPaletteMode(e.target.checked);
 });
