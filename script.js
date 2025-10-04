@@ -13,15 +13,15 @@ let near_items = JSON.parse(window.localStorage.getItem('near_items'));
 const today = new Date().toISOString().slice(0, 10);
 let asteroid_coordinates = [];
 
+const asteroidLabels = [];
+
 window.onload = async () => {
   try {
     if (!near_items || !near_items["near_earth_objects"] || Object.keys(near_items["near_earth_objects"])[0] !== today) {
-      const response = await fetch(
-        "https://nasa-hackathon-backend-two.vercel.app/near_items",
-        {
-           method: "POST" ,
-           headers: { "Content-Type": "application/json" },
-        });
+      const response = await fetch("https://nasa-hackathon-backend-two.vercel.app/near_items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
       if (!response.ok) throw new Error("Failed to fetch near_items");
       near_items = await response.json();
       window.localStorage.setItem('near_items', JSON.stringify(near_items));
@@ -37,42 +37,76 @@ window.onload = async () => {
         if (cached) {
           asteroid_coordinates.push([near_today[i], JSON.parse(cached)]);
         } else {
-          const response = await fetch(
-            "https://nasa-hackathon-backend-two.vercel.app/coordinate",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ id: asteroidId })
-            }
-          );
+          const response = await fetch("https://nasa-hackathon-backend-two.vercel.app/coordinate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: asteroidId })
+          });
           if (!response.ok) throw new Error(`Failed to fetch coordinates for ${asteroidId}`);
           const coord = await response.json();
           window.localStorage.setItem(`asteroid_coord_${asteroidId}`, JSON.stringify(coord));
           asteroid_coordinates.push([near_today[i], coord]);
         }
-
       } catch (e) {
         console.error(`Asteroid ${asteroidId} coordinate fetch failed:`, e);
       }
     }
 
-    for(let i=0; i<asteroid_coordinates.length; i++){
+    for (let i = 0; i < asteroid_coordinates.length; i++) {
+      const asteroidData = asteroid_coordinates[i][0];
+      const coord = asteroid_coordinates[i][1];
+      const diameter = (asteroidData['estimated_diameter']['meters']['estimated_diameter_min'] + asteroidData['estimated_diameter']['meters']['estimated_diameter_max']) / 2;
+
       loader.load(
-        "https://assets.science.nasa.gov/content/dam/science/psd/solar/2023/09/b/Bennu_1_1.glb?emrc=68e007a5963a2", (gltf) => {
-        const model = gltf.scene;
-        model.position.set(
-          asteroid_coordinates[i][1]['x'] * 1000 * 2,
-          asteroid_coordinates[i][1]['y'] * 1000 * 2,
-          asteroid_coordinates[i][1]['z'] * 1000 * 2
-        );
-        model.scale.set(0.005, 0.005, 0.005);
-        scene.add(model);
-      });
+        "https://assets.science.nasa.gov/content/dam/science/psd/solar/2023/09/b/Bennu_1_1.glb?emrc=68e007a5963a2",
+        (gltf) => {
+          const model = gltf.scene;
+          const scaleFactor = 0.0002 * diameter;
+          const pos = new THREE.Vector3(coord['x'], coord['y'], coord['z']).multiplyScalar(1000 * 6);
+
+          model.position.copy(pos);
+          model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+          scene.add(model);
+
+          const label = document.createElement("div");
+          label.className = "asteroid-label";
+          label.id = `asteroid-${asteroidData['id']}`;
+          label.innerHTML = `<h2>${asteroidData['name']}</h2>`;
+          label.style.position = "absolute";
+          label.style.color = "white";
+          label.style.display = "block";
+          document.body.appendChild(label);
+          const asteroid_label = document.getElementById(`asteroid-${asteroidData['id']}`);
+
+          asteroid_label.addEventListener('click', (event) => {
+            event.stopPropagation();
+            controls.target.copy(model.position);
+            const offset = new THREE.Vector3(0, 0, 50);
+            const newCameraPos = model.position.clone().add(offset);
+            camera.position.copy(newCameraPos);
+            camera.lookAt(model.position);
+            controls.update();
+            detailsField.innerHTML = `
+              <p>Diameter: ${diameter.toFixed(2)} meters</p>
+              <p>Velocity: ${parseFloat(asteroidData['close_approach_data'][0]['relative_velocity']['kilometers_per_hour']).toFixed(2)} km/h</p>
+              <p>Miss Distance: ${parseFloat(asteroidData['close_approach_data'][0]['miss_distance']['kilometers']).toFixed(2)} km</p>
+              <p>Potentially Hazardous: ${asteroidData['is_potentially_hazardous_asteroid'] ? 'Yes' : 'No'}</p>
+            `;
+            controls.update();
+            nameField.innerHTML = `<h2>${asteroidData['name']}</h2>`;
+            detailsField.style.display = "block";
+            label.style.zIndex = "10000";
+          });
+          asteroidLabels.push({ model, label });
+        }
+      );
     }
+
   } catch (e) {
     console.error("API error, simulation will continue with available data:", e);
   }
 };
+
 
 const loader = new GLTFLoader();
 const scene = new THREE.Scene();
@@ -87,11 +121,8 @@ const controls = new OrbitControls(camera, renderer.domElement);
 const stars = getStarfield({ numStars: 2500 });
 const ambientLight = new THREE.AmbientLight(0x888888);
 const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-
 const nameField = document.getElementById("show-name");
 const detailsField = document.getElementById("show-details");
-const hamBars = document.getElementById("bars");
-const sideBar = document.getElementById("sidebar");
 const tools = document.getElementById("tools");
 const toolMenu = document.querySelector('.tool-menu');
 const revolutionToggle = document.getElementById('planet-revolution-toggle');
@@ -209,6 +240,19 @@ camera.position.z = 50;
 camera.lookAt(earthGroup.position);
 
 function animate() {
+  asteroidLabels.forEach(({ model, label }) => {
+    const vector = model.position.clone().project(camera);
+    const screenX = (vector.x * 0.5 + 0.5) * window.innerWidth;
+    const screenY = (-vector.y * 0.5 + 0.5) * window.innerHeight;
+
+    if (vector.z < 1) {
+      label.style.left = `${screenX}px`;
+      label.style.top = `${screenY}px`;
+      label.style.display = 'block';
+    } else {
+      label.style.display = 'none';
+    }
+  });
   asteroidBelt.rotation.y += 0.0005;
   if (isRevolve) {
     planetOrbits.forEach(planet => {
@@ -262,7 +306,7 @@ function handleWindowResize() {
 }
 
 function onPointerClick(event) {
-
+  if (event.target.classList.contains('asteroid-label')) return;
   if (!toolMenu.contains(event.target) && event.target !== tools) {
     toolMenu.style.display = "none";
   }
@@ -285,6 +329,9 @@ function onPointerClick(event) {
     detailsField.innerHTML = meshMap.get(obj) == undefined ? `` : meshMap.get(obj)[1];
     nameField.style.left = `${event.clientX}px`;
     nameField.style.top = `${event.clientY}px`;
+    if(obj === earthMesh){}
+      controls.target.copy(earthMesh.position);
+      camera.position.set(0, 0, 0);
   }
 }
 

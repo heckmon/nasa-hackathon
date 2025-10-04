@@ -129,11 +129,25 @@ html, body {
 .switch input:checked + .slider:before {
   transform: translateX(1.5em);
 }
+
 #google_translate_element {
   display: none; 
   margin-top: 10px;
 }
 
+.asteroid-label {
+  position: absolute;
+  padding: 4px 8px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.asteroid-label h2 {
+ font-size: 12px;
+ cursor: pointer;
+}
 
 @media (max-width: 1035px) {
     #tools {
