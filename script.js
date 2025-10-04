@@ -331,7 +331,7 @@ function onPointerClick(event) {
     nameField.style.top = `${event.clientY}px`;
     if(obj === earthMesh){}
       controls.target.copy(earthMesh.position);
-      camera.position.set(0, 0, 0);
+      camera.position.set(earthMesh.position.x + 50, earthMesh.position.y + 50, earthMesh.position.z + 50);
   }
 }
 
