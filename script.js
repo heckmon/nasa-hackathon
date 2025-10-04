@@ -329,9 +329,10 @@ function onPointerClick(event) {
     detailsField.innerHTML = meshMap.get(obj) == undefined ? `` : meshMap.get(obj)[1];
     nameField.style.left = `${event.clientX}px`;
     nameField.style.top = `${event.clientY}px`;
-    if(obj === earthMesh){}
+    if(obj === earthMesh){
       controls.target.copy(earthMesh.position);
       camera.position.set(earthMesh.position.x + 50, earthMesh.position.y + 50, earthMesh.position.z + 50);
+    }
   }
 }
 
