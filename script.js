@@ -23,7 +23,7 @@ window.onload = async () => {
     }
 
     let near_today = (near_items["near_earth_objects"] && near_items["near_earth_objects"][today]) || [];
-    let asteroid_coordinates = [];
+    asteroid_coordinates = [];
 
     for (let i = 0; i < near_today.length; i++) {
       const asteroidId = near_today[i]["id"];
@@ -45,11 +45,25 @@ window.onload = async () => {
           window.localStorage.setItem(`asteroid_coord_${asteroidId}`, JSON.stringify(coord));
           asteroid_coordinates.push([near_today[i], coord]);
         }
+
       } catch (e) {
         console.error(`Asteroid ${asteroidId} coordinate fetch failed:`, e);
       }
     }
 
+    for(let i=0; i<asteroid_coordinates.length; i++){
+      loader.load(
+        "https://assets.science.nasa.gov/content/dam/science/psd/solar/2023/09/b/Bennu_1_1.glb?emrc=68e007a5963a2", (gltf) => {
+        const model = gltf.scene;
+        model.position.set(
+          asteroid_coordinates[i][1]['x'] * 1000 * 2,
+          asteroid_coordinates[i][1]['y'] * 1000 * 2,
+          asteroid_coordinates[i][1]['z'] * 1000 * 2
+        );
+        model.scale.set(0.005, 0.005, 0.005);
+        scene.add(model);
+      });
+    }
   } catch (e) {
     console.error("API error, simulation will continue with available data:", e);
   }
@@ -185,20 +199,6 @@ scene.add(saturnMesh);
 scene.add(uranusMesh);
 scene.add(neptuneMesh);
 scene.add(sunMesh);
-
-for(let i=0; i<asteroid_coordinates.length; i++){
-  loader.load(
-    "https://assets.science.nasa.gov/content/dam/science/psd/solar/2023/09/b/Bennu_1_1.glb?emrc=68e007a5963a2", (gltf) => {
-    const model = gltf.scene;
-    model.position.set(
-      asteroid_coordinates[i][1]['x'] * 1000 * 2,
-      asteroid_coordinates[i][1]['y'] * 1000 * 2,
-      asteroid_coordinates[i][1]['z'] * 1000 * 2
-    );
-    model.scale.set(0.005, 0.005, 0.005);
-    scene.add(model);
-  });
-}
 
 camera.position.z = 50;
 camera.lookAt(earthGroup.position);
