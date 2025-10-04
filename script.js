@@ -16,7 +16,12 @@ let asteroid_coordinates = [];
 window.onload = async () => {
   try {
     if (!near_items || !near_items["near_earth_objects"] || Object.keys(near_items["near_earth_objects"])[0] !== today) {
-      const response = await fetch("https://nasa-hackathon-backend-two.vercel.app/near_items", { method: "POST" });
+      const response = await fetch(
+        "https://nasa-hackathon-backend-two.vercel.app/near_items",
+        {
+           method: "POST" ,
+           headers: { "Content-Type": "application/json" },
+        });
       if (!response.ok) throw new Error("Failed to fetch near_items");
       near_items = await response.json();
       window.localStorage.setItem('near_items', JSON.stringify(near_items));
