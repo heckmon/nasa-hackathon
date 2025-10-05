@@ -135,7 +135,6 @@ window.onload = async () => {
             label.classList.add('selected-label');
 
             selectedAsteroid = model;
-            console.log("Selected asteroid:", asteroidData['name']);
           });
           document.body.appendChild(label);
           const asteroid_label = document.getElementById(`asteroid-${asteroidData['id']}`);
@@ -189,7 +188,6 @@ window.onload = async () => {
           if (asteroidsLoaded === asteroid_coordinates.length) {
             setTimeout(() => {
               hideLoadingIndicator();
-              console.log(`All ${asteroidsLoaded} asteroids loaded successfully!`);
             }, 1000);
           }
         },
@@ -684,8 +682,7 @@ function scheduleCollisionForAsteroid(model) {
   const cancelSignal = { cancelled: false };
 
   const delayId = setTimeout(() => {
-    animateMoveToEarth(model, asteroidMoveDuration, (collidedModel) => {
-      console.log("Animation completed for asteroid:", collidedModel.userData.asteroidId);
+    animateMoveToEarth(model, asteroidMoveDuration, () => {
     }, cancelSignal);
   }, 1000);
 
@@ -693,7 +690,6 @@ function scheduleCollisionForAsteroid(model) {
 }
 
 function onAsteroidCollision(model) {
-  console.log("Collision detected for asteroid:", model.userData.asteroidId);
   model.userData.isCollided = true;
   createCollisionPop(model.position);
   
@@ -717,7 +713,6 @@ function onAsteroidCollision(model) {
       const resetBtn = document.getElementById('reset-asteroid-btn');
       if (resetBtn) {
         resetBtn.style.display = 'block';
-        console.log("Reset button should now be visible");
       } else {
         console.error("Reset button element not found!");
       }
@@ -726,30 +721,27 @@ function onAsteroidCollision(model) {
 
   requestAnimationFrame(popStep);
 
-  const asteroidId = model.userData.asteroidId;
-  const coordStr = window.localStorage.getItem(`asteroid_coord_${asteroidId}`);
-  
-  console.log("Looking for coordinates for asteroid:", asteroidId);
-  console.log("Found coordinate string:", coordStr);
-  
-  if (coordStr) {
-    const coord = JSON.parse(coordStr);
-    console.log("Parsed coordinates:", coord);
+  setTimeout(() => {
+    const asteroidId = model.userData.asteroidId;
+    const coordStr = window.localStorage.getItem(`asteroid_coord_${asteroidId}`);
+    
+    if (coordStr) {
+      const coord = JSON.parse(coordStr);
 
-    if (coord['lat'] !== undefined && coord['lon'] !== undefined) {
-      console.log("Valid coordinates found:", coord['lat'], coord['lon']);
-      showLeafletMap(coord['lat'], coord['lon'], asteroidId);
+      if (coord['lat'] !== undefined && coord['lon'] !== undefined) {
+        showLeafletMap(coord['lat'], coord['lon'], asteroidId);
+      } else {
+        console.error("Coordinates missing lat/lon properties:", coord);
+      }
     } else {
-      console.error("Coordinates missing lat/lon properties:", coord);
+      console.error("No coordinates found in localStorage for asteroid:", asteroidId);
     }
-  } else {
-    console.error("No coordinates found in localStorage for asteroid:", asteroidId);
-  }
+  }, 800)
+  
+  earthCollideToggle.checked = false;
 }
 
 function showLeafletMap(lat, lon, asteroidId) {
-  console.log("Creating Leaflet map at:", lat, lon);
-  
   const existingMap = document.getElementById('collision-map-container');
   if (existingMap) {
     document.body.removeChild(existingMap);
@@ -775,7 +767,7 @@ function showLeafletMap(lat, lon, asteroidId) {
   closeButton.innerHTML = '×';
   closeButton.style.cssText = `
     position: absolute;
-    top: 10px;
+    top: -15px;
     right: -50px;
     background: #ff4444;
     color: white;
@@ -843,42 +835,32 @@ function showLeafletMap(lat, lon, asteroidId) {
         <div id="map"></div>
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
         <script>
-            console.log("Initializing Leaflet map with coordinates:", ${lat}, ${lon});
-            
-            // Initialize the map with a more zoomed-out view
             const map = L.map('map', {
                 zoomControl: true,
                 attributionControl: true
             }).setView([${lat}, ${lon}], 3); // Start at zoom level 3 for broader view
 
-            // Colorful tile layers - add multiple options
             const colorfulTiles = [
-                // Vibrant color scheme
                 L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
                     attribution: 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap',
                     maxZoom: 17
                 }),
-                // Dark theme with colorful highlights
                 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
                     attribution: '© OpenStreetMap contributors, © CARTO',
                     maxZoom: 20
                 }),
-                // Satellite view
                 L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                     attribution: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
                     maxZoom: 18
                 }),
-                // Warm terrain colors
                 L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
                     attribution: 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap',
                     maxZoom: 17
                 })
             ];
 
-            // Add the first colorful tile layer
             colorfulTiles[0].addTo(map);
 
-            // Create a custom impact marker icon
             const impactIcon = L.divIcon({
                 className: 'impact-marker',
                 html: '<div style="width: 20px; height: 20px; background: radial-gradient(circle, #ff4444 30%, #ff0000 70%); border: 2px solid #fff; border-radius: 50%;"></div>',
@@ -886,7 +868,6 @@ function showLeafletMap(lat, lon, asteroidId) {
                 iconAnchor: [12, 12]
             });
 
-            // Add impact marker with custom icon
             const marker = L.marker([${lat}, ${lon}], { 
                 icon: impactIcon,
                 title: 'Asteroid Impact Point'
@@ -904,7 +885,6 @@ function showLeafletMap(lat, lon, asteroidId) {
                 )
                 .openPopup();
 
-            // Add multiple impact zones with different radii
             const impactZones = [
                 { radius: 100000, color: '#ff0000', fillOpacity: 0.2, message: '100km Severe Impact Zone' },
                 { radius: 50000, color: '#ff4444', fillOpacity: 0.3, message: '50km Critical Impact Zone' },
@@ -922,10 +902,8 @@ function showLeafletMap(lat, lon, asteroidId) {
                 .bindPopup('<b>' + zone.message + '</b><br>Evacuation recommended');
             });
 
-            // Add scale control
             L.control.scale({ imperial: false }).addTo(map);
 
-            // Fit map to show all impact zones with padding
             const bounds = L.latLngBounds([
                 [${lat} - 2, ${lon} - 2], // Southwest corner
                 [${lat} + 2, ${lon} + 2]  // Northeast corner
@@ -933,7 +911,6 @@ function showLeafletMap(lat, lon, asteroidId) {
             
             map.fitBounds(bounds, { padding: [20, 20] });
 
-            // Add layer control to switch between different map styles
             const baseMaps = {
                 "Colorful Topo": colorfulTiles[0],
                 "Dark Theme": colorfulTiles[1],
@@ -943,14 +920,10 @@ function showLeafletMap(lat, lon, asteroidId) {
 
             L.control.layers(baseMaps).addTo(map);
 
-            console.log("Leaflet map initialized successfully with impact visualization");
             
-            // Add some interactive features
             map.on('zoomend', function() {
-                console.log("Current zoom level:", map.getZoom());
             });
 
-            // Auto-adjust view if coordinates are near poles or extreme locations
             function validateView() {
                 const currentZoom = map.getZoom();
                 const currentCenter = map.getCenter();
@@ -962,7 +935,6 @@ function showLeafletMap(lat, lon, asteroidId) {
                 }
             }
 
-            // Run validation after map loads
             setTimeout(validateView, 1000);
 
         </script>
@@ -973,8 +945,6 @@ function showLeafletMap(lat, lon, asteroidId) {
   mapContainer.appendChild(closeButton);
   mapContainer.appendChild(iframe);
   document.body.appendChild(mapContainer);
-
-  console.log("Leaflet map container added to DOM");
 }
 
 function cancelScheduledCollisionForAsteroid(model) {

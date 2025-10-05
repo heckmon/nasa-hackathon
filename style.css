@@ -177,18 +177,6 @@ html, body {
  cursor: pointer;
 }
 
-@media (max-width: 1035px) {
-    #tools {
-        top: 0;
-        right: 0;
-        left: auto;
-        bottom: auto;
-        margin-top: 100px;
-        margin-right: 20px;
-        font-size: 18px;
-    }
-}
-
 .asteroid-label .collide-control {
   display: flex;
   gap: 6px;
@@ -206,7 +194,7 @@ html, body {
 
 #reset-asteroid-btn {
   position: absolute;
-  right: 40px;
+  right: 30px;
   top: 90px;
   background-color: #222;
   color: #fff;
@@ -223,4 +211,21 @@ html, body {
 #reset-asteroid-btn:hover {
   background-color: #444;
   transform: scale(1.05);
+}
+
+@media (max-width: 1035px) {
+    #tools {
+        top: 150px;
+        right: 30px;
+        left: auto;
+        bottom: auto;
+        font-size: 18px;
+    }
+
+    .tool-menu {
+      top: 70px;
+      right: 80px;
+      bottom: auto;
+      left: auto;
+    }
 }
