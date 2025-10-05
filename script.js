@@ -9,9 +9,13 @@ import { mercuryMesh, venusMesh, marsMesh, jupiterMesh, saturnMesh, uranusMesh, 
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import getStarfield from './src/getStarfield.js';
 
+const AU = 200;
+
 let near_items = JSON.parse(window.localStorage.getItem('near_items'));
 const today = new Date().toISOString().slice(0, 10);
 let asteroid_coordinates = [];
+let velocity_vectors = {};
+let vx = 0, vy = 0, vz = 0;
 
 const asteroidLabels = [];
 
@@ -49,6 +53,22 @@ window.onload = async () => {
         }
       } catch (e) {
         console.error(`Asteroid ${asteroidId} coordinate fetch failed:`, e);
+      }
+
+      try {
+        const response = await fetch("https://nasa-hackathon-backend-two.vercel.app/velocity_vectors", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: asteroidId })
+        });
+        if (!response.ok) throw new Error(`Failed to fetch velocity for ${asteroidId}`);
+        const velocity = await response.json();
+        velocity_vectors[asteroidId] = velocity;
+        vx = velocity['vx'];
+        vy = velocity['vy'];
+        vz = velocity['vz'];
+      } catch (e) {
+        console.log(`Asteroid ${asteroidId} velocity fetch failed:`, e);
       }
     }
 
