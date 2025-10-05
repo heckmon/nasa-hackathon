@@ -118,6 +118,12 @@ window.onload = async () => {
             label.style.zIndex = "10000";
           });
           asteroidLabels.push({ model, label });
+
+          const velocity = velocity_vectors[asteroidData.id];
+          if (velocity) {
+            const trajLine = createTrajectoryLineToAsteroid(model, velocity);
+            asteroidLabels[asteroidLabels.length - 1].trajLine = trajLine;
+          }
         }
       );
     }
@@ -296,6 +302,7 @@ function animate() {
   neptuneMesh.rotation.y += 0.005;
   stars.rotation.y -= 0.0005;
   controls.update();
+  updateTrajectoryLines();
   bloomComposer.render();
 }
 
@@ -303,7 +310,7 @@ window.googleTranslateElementInit = function () {
   new google.translate.TranslateElement(
     {
       pageLanguage: 'en',
-      includedLanguages: 'en,hi,es,fr,de,zh,ar,ru',
+      includedLanguages: 'en,hi,es,fr,de,zh,ar,ru,ml',
       layout: google.translate.TranslateElement.InlineLayout.SIMPLE
     },
     'google_translate_element'
@@ -349,7 +356,7 @@ function onPointerClick(event) {
     detailsField.innerHTML = meshMap.get(obj) == undefined ? `` : meshMap.get(obj)[1];
     nameField.style.left = `${event.clientX}px`;
     nameField.style.top = `${event.clientY}px`;
-    if(obj === earthMesh){
+    if (obj === earthMesh) {
       controls.target.copy(earthMesh.position);
       camera.position.set(earthMesh.position.x + 50, earthMesh.position.y + 50, earthMesh.position.z + 50);
     }
@@ -424,3 +431,51 @@ const colorPaletteToggle = document.getElementById('color-blind-toggle');
 colorPaletteToggle.addEventListener('change', (e) => {
   applyColorPaletteMode(e.target.checked);
 });
+
+function updateTrajectoryLines() {
+  asteroidLabels.forEach(({ model, trajLine }) => {
+    if (!trajLine) return;
+    const velocity = velocity_vectors[model.name];
+    if (!velocity) return;
+
+    const scaleFactor = AU;
+    const vx = velocity.vx * scaleFactor;
+    const vy = velocity.vy * scaleFactor;
+    const vz = velocity.vz * scaleFactor;
+
+    const direction = new THREE.Vector3(vx, vy, vz).normalize();
+    const lineLength = Math.max(camera.far * 10, 1e6);
+
+    const startPoint = model.position.clone().add(direction.clone().multiplyScalar(-lineLength));
+    const endPoint = model.position.clone();
+
+    trajLine.geometry.setFromPoints([startPoint, endPoint]);
+    trajLine.geometry.computeBoundingSphere();
+    trajLine.computeLineDistances();
+  });
+}
+
+function createTrajectoryLineToAsteroid(asteroidModel, velocity) {
+  if (!velocity) return null;
+
+  const scaleFactor = AU;
+  const vx = velocity.vx * scaleFactor;
+  const vy = velocity.vy * scaleFactor;
+  const vz = velocity.vz * scaleFactor;
+
+  const direction = new THREE.Vector3(vx, vy, vz).normalize();
+  const lineLength = 50000;
+  const startPoint = asteroidModel.position.clone().add(direction.clone().multiplyScalar(-lineLength));
+  const endPoint = asteroidModel.position.clone();
+  const points = [startPoint, endPoint];
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  const material = new THREE.LineBasicMaterial({
+    color: 0xffffff,
+  });
+
+  const line = new THREE.Line(geometry, material);
+  line.computeLineDistances();
+
+  scene.add(line);
+  return line;
+}
