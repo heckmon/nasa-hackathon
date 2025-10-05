@@ -17,7 +17,22 @@ let asteroid_coordinates = [];
 let velocity_vectors = {};
 let vx = 0, vy = 0, vz = 0;
 
+let selectedAsteroid = null;
 const asteroidLabels = [];
+
+const asteroid_tool_box = document.getElementById("asteroid-tool-box");
+const asteroid_tools = document.getElementById("asteroid-tools");
+const activeAnimations = new Map();
+const collisionRadius = 25;
+const asteroidMoveDuration = 2000; 
+
+function lerpVec3(a, b, t) {
+  return new THREE.Vector3(
+    a.x + (b.x - a.x) * t,
+    a.y + (b.y - a.y) * t,
+    a.z + (b.z - a.z) * t
+  );
+}
 
 window.onload = async () => {
   try {
@@ -81,11 +96,17 @@ window.onload = async () => {
         "https://assets.science.nasa.gov/content/dam/science/psd/solar/2023/09/b/Bennu_1_1.glb?emrc=68e007a5963a2",
         (gltf) => {
           const model = gltf.scene;
+          model.name = `asteroid-${asteroidData['id']}`;
+          model.userData.asteroidId = asteroidData['id'];
           const scaleFactor = 0.0002 * diameter;
           const pos = new THREE.Vector3(coord['x'], coord['y'], coord['z']).multiplyScalar(1000 * 6);
 
           model.position.copy(pos);
           model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+          model.userData.originalScale = model.scale.clone();
+          model.userData.originalPosition = pos.clone();
+          model.userData.isCollided = false;
+
           scene.add(model);
 
           const label = document.createElement("div");
@@ -95,10 +116,20 @@ window.onload = async () => {
           label.style.position = "absolute";
           label.style.color = "white";
           label.style.display = "block";
+          label.addEventListener('click', () => {
+            document.querySelectorAll('.label').forEach(lbl => lbl.classList.remove('selected-label'));
+            label.classList.add('selected-label');
+
+            selectedAsteroid = model;
+            console.log("Selected asteroid:", asteroidData['name']);
+          });
           document.body.appendChild(label);
           const asteroid_label = document.getElementById(`asteroid-${asteroidData['id']}`);
 
           asteroid_label.addEventListener('click', (event) => {
+            if (event.target.classList && event.target.classList.contains('collide-toggle')) {
+                return;
+            }
             event.stopPropagation();
             controls.target.copy(model.position);
             const offset = new THREE.Vector3(0, 0, 50);
@@ -116,13 +147,28 @@ window.onload = async () => {
             nameField.innerHTML = `<h2>${asteroidData['name']}</h2>`;
             detailsField.style.display = "block";
             label.style.zIndex = "10000";
-          });
-          asteroidLabels.push({ model, label });
 
+            asteroid_tool_box.style.display = "block";
+          });
+
+          const toggle = label.querySelector('.collide-toggle');
+          if (toggle) {
+            toggle.addEventListener('change', (ev) => {
+              const checked = ev.target.checked;
+              if (checked) {
+                scheduleCollisionForAsteroid(model);
+              } else {
+                cancelScheduledCollisionForAsteroid(model);
+              }
+            });
+          }
+          asteroidLabels.push({ model, label });
+          
           const velocity = velocity_vectors[asteroidData.id];
           if (velocity) {
             const trajLine = createTrajectoryLineToAsteroid(model, velocity);
             asteroidLabels[asteroidLabels.length - 1].trajLine = trajLine;
+            model.userData.trajectoryLine = trajLine;
           }
         }
       );
@@ -152,6 +198,7 @@ const detailsField = document.getElementById("show-details");
 const tools = document.getElementById("tools");
 const toolMenu = document.querySelector('.tool-menu');
 const revolutionToggle = document.getElementById('planet-revolution-toggle');
+const earthCollideToggle = document.getElementById('earth-collide-toggle');
 
 let isRevolve = false
 
@@ -370,7 +417,15 @@ window.addEventListener('click', onPointerClick);
 window.addEventListener('pointerdown', () => isDown = true);
 window.addEventListener('pointerup', () => isDown = false)
 window.addEventListener('pointermove', () => {
-  if (isDown) nameField.style.display = "none";
+  if (isDown) {
+    nameField.style.display = "none";
+    asteroid_tool_box.style.display = "none";
+    asteroid_tools.style.display = "none";
+  }
+});
+
+asteroid_tool_box.addEventListener('click', ()=> {
+  asteroid_tools.style.display = "block";
 });
 
 tools.addEventListener('click', () => {
@@ -380,6 +435,30 @@ tools.addEventListener('click', () => {
 
 revolutionToggle.addEventListener('change', (e) => {
   isRevolve = e.target.checked;
+});
+
+const resetBtn = document.getElementById('reset-asteroid-btn');
+resetBtn.addEventListener('click', () => {
+  if (!selectedAsteroid) return;
+
+  const model = selectedAsteroid;
+  if (model.userData.originalPosition) {
+    model.position.copy(model.userData.originalPosition);
+  }
+  if (model.userData.originalScale) {
+    model.scale.copy(model.userData.originalScale);
+  } else {
+    model.scale.set( model.scale.x / 3, model.scale.y / 3, model.scale.z / 3 );
+  }
+  model.visible = true;
+  model.userData.isCollided = false;
+  const lbl = document.getElementById(`asteroid-${model.userData.asteroidId}`);
+  if (lbl) lbl.style.display = 'block';
+  if (model.userData.trajectoryLine) model.userData.trajectoryLine.visible = true;
+  resetBtn.style.display = 'none';
+  const collToggle = document.getElementById('earth-collide-toggle') || document.getElementById('eath-collide-toggle');
+  if (collToggle) collToggle.checked = false;
+  activeAnimations.delete(model.userData.asteroidId);
 });
 
 earthMesh.name = "earth";
@@ -479,3 +558,152 @@ function createTrajectoryLineToAsteroid(asteroidModel, velocity) {
   scene.add(line);
   return line;
 }
+
+function createCollisionPop(position) {
+  const geometry = new THREE.SphereGeometry(10, 16, 16);
+  const material = new THREE.MeshBasicMaterial({ 
+    color: 0xff4444, 
+    transparent: true, 
+    opacity: 0.7 
+  });
+  const explosion = new THREE.Mesh(geometry, material);
+  explosion.position.copy(position);
+  scene.add(explosion);
+
+  const startTime = performance.now();
+  const duration = 500;
+  
+  function animateExplosion(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    
+    const scale = 1 + progress * 3;
+    const opacity = 0.7 * (1 - progress);
+    
+    explosion.scale.set(scale, scale, scale);
+    explosion.material.opacity = opacity;
+    
+    if (progress < 1) {
+      requestAnimationFrame(animateExplosion);
+    } else {
+      scene.remove(explosion);
+    }
+  }
+  
+  requestAnimationFrame(animateExplosion);
+}
+
+function animateMoveToEarth(model, duration, onComplete, cancelSignal) {
+  const startPos = model.position.clone();
+  const endPos = earthMesh.position.clone();
+  const startTime = performance.now();
+
+  function step(now) {
+    if (cancelSignal.cancelled) return;
+    const elapsed = now - startTime;
+    const t = Math.min(elapsed / duration, 1);
+    const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    const newPos = lerpVec3(startPos, endPos, eased);
+    model.position.copy(newPos);
+
+    const dist = model.position.distanceTo(earthMesh.position);
+    
+    if (dist <= collisionRadius) {
+      onAsteroidCollision(model);
+      if (onComplete) onComplete(model);
+      return;
+    }
+
+    if (t < 1) {
+      const rafId = requestAnimationFrame(step);
+      activeAnimations.set(model.userData.asteroidId, { rafId, cancel: cancelSignal });
+    } else {
+      if (onComplete) onComplete(model);
+    }
+  }
+  const rafId = requestAnimationFrame(step);
+  activeAnimations.set(model.userData.asteroidId, { rafId, cancel: cancelSignal });
+}
+
+function scheduleCollisionForAsteroid(model) {
+  if (model.userData.trajectoryLine) {
+    model.userData.trajectoryLine.visible = false;
+  }
+
+  const asteroidId = model.userData.asteroidId;
+
+  if (
+    activeAnimations.has(asteroidId) &&
+    activeAnimations.get(asteroidId).cancel &&
+    !activeAnimations.get(asteroidId).cancel.cancelled
+  ) {
+    return;
+  }
+
+  const cancelSignal = { cancelled: false };
+
+  const delayId = setTimeout(() => {
+    animateMoveToEarth(model, asteroidMoveDuration, (collidedModel) => {
+      console.log("Animation completed for asteroid:", collidedModel.userData.asteroidId);
+    }, cancelSignal);
+  }, 1000);
+
+  activeAnimations.set(asteroidId, { delayId, cancel: cancelSignal });
+}
+
+function onAsteroidCollision(model) {
+  console.log("Collision detected for asteroid:", model.userData.asteroidId);
+  model.userData.isCollided = true;
+  createCollisionPop(model.position);
+  const startScale = model.scale.clone();
+  const targetScale = startScale.clone().multiplyScalar(3);
+  const popDuration = 400; // ms
+  const start = performance.now();
+
+  function popStep(now) {
+    const t = Math.min((now - start) / popDuration, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    model.scale.lerpVectors(startScale, targetScale, ease);
+    if (t < 1) {
+      requestAnimationFrame(popStep);
+    } else {
+      model.visible = false;
+      const lbl = document.getElementById(`asteroid-${model.userData.asteroidId}`);
+      if (lbl) lbl.style.display = 'none';
+      if (model.userData.trajectoryLine) model.userData.trajectoryLine.visible = false;
+      const resetBtn = document.getElementById('reset-asteroid-btn');
+      if (resetBtn) {
+        resetBtn.style.display = 'block';
+        console.log("Reset button should now be visible");
+      } else {
+        console.error("Reset button element not found!");
+      }
+    }
+  }
+
+  requestAnimationFrame(popStep);
+}
+function cancelScheduledCollisionForAsteroid(model) {
+  const asteroidId = model.userData.asteroidId;
+  const record = activeAnimations.get(asteroidId);
+  if (!record) return;
+  if (record.delayId) clearTimeout(record.delayId);
+  if (record.cancel) record.cancel.cancelled = true;
+  if (record.rafId) cancelAnimationFrame(record.rafId);
+  activeAnimations.delete(asteroidId);
+}
+
+earthCollideToggle.addEventListener('change', (e) => {
+  if (!selectedAsteroid) {
+    alert("Select an asteroid first!");
+    e.target.checked = false;
+    return;
+  }
+
+  const checked = e.target.checked;
+  if (checked) {
+    scheduleCollisionForAsteroid(selectedAsteroid);
+  } else {
+    cancelScheduledCollisionForAsteroid(selectedAsteroid);
+  }
+});
