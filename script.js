@@ -24,7 +24,11 @@ const asteroid_tool_box = document.getElementById("asteroid-tool-box");
 const asteroid_tools = document.getElementById("asteroid-tools");
 const activeAnimations = new Map();
 const collisionRadius = 25;
-const asteroidMoveDuration = 2000; 
+const asteroidMoveDuration = 2000;
+
+let asteroidsLoaded = 0;
+let totalAsteroidsToLoad = 0;
+let loadingDiv = null;
 
 function lerpVec3(a, b, t) {
   return new THREE.Vector3(
@@ -35,8 +39,12 @@ function lerpVec3(a, b, t) {
 }
 
 window.onload = async () => {
+  createLoadingIndicator();
+  updateLoadingProgress(0, 0, 'Starting asteroid data fetch...');
+
   try {
     if (!near_items || !near_items["near_earth_objects"] || Object.keys(near_items["near_earth_objects"])[0] !== today) {
+      updateLoadingProgress(0, 0, 'Fetching fresh asteroid data from NASA...');
       const response = await fetch("https://nasa-hackathon-backend-two.vercel.app/near_items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -48,9 +56,13 @@ window.onload = async () => {
 
     let near_today = (near_items["near_earth_objects"] && near_items["near_earth_objects"][today]) || [];
     asteroid_coordinates = [];
+    totalAsteroidsToLoad = near_today.length;
 
+    updateLoadingProgress(0, totalAsteroidsToLoad, `Processing ${totalAsteroidsToLoad} asteroids...`);
     for (let i = 0; i < near_today.length; i++) {
       const asteroidId = near_today[i]["id"];
+      updateLoadingProgress(i, totalAsteroidsToLoad, `Fetching data for asteroid ${i+1}/${totalAsteroidsToLoad}...`);
+
       try {
         const cached = window.localStorage.getItem(`asteroid_coord_${asteroidId}`);
         if (cached) {
@@ -86,6 +98,8 @@ window.onload = async () => {
         console.log(`Asteroid ${asteroidId} velocity fetch failed:`, e);
       }
     }
+    updateLoadingProgress(0, asteroid_coordinates.length, 'Loading 3D asteroid models...');
+    asteroidsLoaded = 0;
 
     for (let i = 0; i < asteroid_coordinates.length; i++) {
       const asteroidData = asteroid_coordinates[i][0];
@@ -170,12 +184,39 @@ window.onload = async () => {
             asteroidLabels[asteroidLabels.length - 1].trajLine = trajLine;
             model.userData.trajectoryLine = trajLine;
           }
+          asteroidsLoaded++;
+          updateLoadingProgress(asteroidsLoaded, asteroid_coordinates.length, `Loading asteroid ${asteroidsLoaded}/${asteroid_coordinates.length}...`);
+          if (asteroidsLoaded === asteroid_coordinates.length) {
+            setTimeout(() => {
+              hideLoadingIndicator();
+              console.log(`All ${asteroidsLoaded} asteroids loaded successfully!`);
+            }, 1000);
+          }
+        },
+        (progress) => {
+          if (progress.lengthComputable) {
+            const percent = (progress.loaded / progress.total) * 100;
+          }
+        },
+        (error) => {
+          console.error('Error loading asteroid model:', error);
+          asteroidsLoaded++;
+          updateLoadingProgress(asteroidsLoaded, asteroid_coordinates.length, `Error loading asteroid ${asteroidsLoaded}/${asteroid_coordinates.length}`);
+          
+          if (asteroidsLoaded === asteroid_coordinates.length) {
+            hideLoadingIndicator();
+          }
         }
       );
+    }
+    if (asteroid_coordinates.length === 0) {
+      hideLoadingIndicator();
     }
 
   } catch (e) {
     console.error("API error, simulation will continue with available data:", e);
+    updateLoadingProgress(0, 0, 'Error loading asteroid data. Using cached data...');
+    setTimeout(hideLoadingIndicator, 2000);
   }
 };
 
@@ -655,9 +696,10 @@ function onAsteroidCollision(model) {
   console.log("Collision detected for asteroid:", model.userData.asteroidId);
   model.userData.isCollided = true;
   createCollisionPop(model.position);
+  
   const startScale = model.scale.clone();
   const targetScale = startScale.clone().multiplyScalar(3);
-  const popDuration = 400; // ms
+  const popDuration = 400;
   const start = performance.now();
 
   function popStep(now) {
@@ -671,6 +713,7 @@ function onAsteroidCollision(model) {
       const lbl = document.getElementById(`asteroid-${model.userData.asteroidId}`);
       if (lbl) lbl.style.display = 'none';
       if (model.userData.trajectoryLine) model.userData.trajectoryLine.visible = false;
+      
       const resetBtn = document.getElementById('reset-asteroid-btn');
       if (resetBtn) {
         resetBtn.style.display = 'block';
@@ -682,7 +725,258 @@ function onAsteroidCollision(model) {
   }
 
   requestAnimationFrame(popStep);
+
+  const asteroidId = model.userData.asteroidId;
+  const coordStr = window.localStorage.getItem(`asteroid_coord_${asteroidId}`);
+  
+  console.log("Looking for coordinates for asteroid:", asteroidId);
+  console.log("Found coordinate string:", coordStr);
+  
+  if (coordStr) {
+    const coord = JSON.parse(coordStr);
+    console.log("Parsed coordinates:", coord);
+
+    if (coord['lat'] !== undefined && coord['lon'] !== undefined) {
+      console.log("Valid coordinates found:", coord['lat'], coord['lon']);
+      showLeafletMap(coord['lat'], coord['lon'], asteroidId);
+    } else {
+      console.error("Coordinates missing lat/lon properties:", coord);
+    }
+  } else {
+    console.error("No coordinates found in localStorage for asteroid:", asteroidId);
+  }
 }
+
+function showLeafletMap(lat, lon, asteroidId) {
+  console.log("Creating Leaflet map at:", lat, lon);
+  
+  const existingMap = document.getElementById('collision-map-container');
+  if (existingMap) {
+    document.body.removeChild(existingMap);
+  }
+
+  const mapContainer = document.createElement('div');
+  mapContainer.id = 'collision-map-container';
+  mapContainer.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80vw;
+    height: 80vh;
+    background: white;
+    border: 2px solid #ff4444;
+    border-radius: 10px;
+    z-index: 10000;
+    box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+  `;
+
+  const closeButton = document.createElement('button');
+  closeButton.innerHTML = '×';
+  closeButton.style.cssText = `
+    position: absolute;
+    top: 10px;
+    right: -50px;
+    background: #ff4444;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    font-size: 20px;
+    cursor: pointer;
+    z-index: 10001;
+  `;
+  closeButton.onclick = () => {
+    document.body.removeChild(mapContainer);
+  };
+
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = `
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 8px;
+  `;
+
+  const mapHTML = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Asteroid Collision Map</title>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <style>
+            body { 
+                margin: 0; 
+                padding: 0; 
+                font-family: Arial, sans-serif;
+                background: #1a1a1a;
+            }
+            #map { 
+                height: 100vh; 
+                width: 100vw; 
+                background: #1a1a1a;
+            }
+            .leaflet-popup-content h3 {
+                margin: 0 0 10px 0;
+                color: #ff4444;
+                font-size: 16px;
+            }
+            .leaflet-popup-content {
+                font-size: 14px;
+                line-height: 1.4;
+            }
+            .impact-marker {
+                background: rgba(255, 68, 68, 0.8);
+                border: 3px solid #ff0000;
+                border-radius: 50%;
+                animation: pulse 2s infinite;
+            }
+            @keyframes pulse {
+                0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+                70% { box-shadow: 0 0 0 15px rgba(255, 0, 0, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+            }
+        </style>
+    </head>
+    <body>
+        <div id="map"></div>
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <script>
+            console.log("Initializing Leaflet map with coordinates:", ${lat}, ${lon});
+            
+            // Initialize the map with a more zoomed-out view
+            const map = L.map('map', {
+                zoomControl: true,
+                attributionControl: true
+            }).setView([${lat}, ${lon}], 3); // Start at zoom level 3 for broader view
+
+            // Colorful tile layers - add multiple options
+            const colorfulTiles = [
+                // Vibrant color scheme
+                L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                    attribution: 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap',
+                    maxZoom: 17
+                }),
+                // Dark theme with colorful highlights
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '© OpenStreetMap contributors, © CARTO',
+                    maxZoom: 20
+                }),
+                // Satellite view
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+                    maxZoom: 18
+                }),
+                // Warm terrain colors
+                L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                    attribution: 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap',
+                    maxZoom: 17
+                })
+            ];
+
+            // Add the first colorful tile layer
+            colorfulTiles[0].addTo(map);
+
+            // Create a custom impact marker icon
+            const impactIcon = L.divIcon({
+                className: 'impact-marker',
+                html: '<div style="width: 20px; height: 20px; background: radial-gradient(circle, #ff4444 30%, #ff0000 70%); border: 2px solid #fff; border-radius: 50%;"></div>',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+
+            // Add impact marker with custom icon
+            const marker = L.marker([${lat}, ${lon}], { 
+                icon: impactIcon,
+                title: 'Asteroid Impact Point'
+            }).addTo(map)
+                .bindPopup(
+                    '<div style="text-align: center;">' +
+                    '<h3>💥 ASTEROID IMPACT DETECTED!</h3>' +
+                    '<hr style="margin: 8px 0;">' +
+                    '<b>🆔 Asteroid ID:</b> ${asteroidId}<br>' +
+                    '<b>📍 Latitude:</b> ${lat.toFixed(4)}°<br>' +
+                    '<b>📍 Longitude:</b> ${lon.toFixed(4)}°<br>' +
+                    '<b>🕐 Detection Time:</b> ${new Date().toLocaleString()}<br>' +
+                    '<b>⚠️ Status:</b> <span style="color: #ff4444; font-weight: bold;">IMPACT CONFIRMED</span>' +
+                    '</div>'
+                )
+                .openPopup();
+
+            // Add multiple impact zones with different radii
+            const impactZones = [
+                { radius: 100000, color: '#ff0000', fillOpacity: 0.2, message: '100km Severe Impact Zone' },
+                { radius: 50000, color: '#ff4444', fillOpacity: 0.3, message: '50km Critical Impact Zone' },
+                { radius: 25000, color: '#ff6666', fillOpacity: 0.4, message: '25km Epicenter Zone' }
+            ];
+
+            impactZones.forEach(zone => {
+                L.circle([${lat}, ${lon}], {
+                    color: zone.color,
+                    fillColor: zone.color,
+                    fillOpacity: zone.fillOpacity,
+                    radius: zone.radius,
+                    weight: 2
+                }).addTo(map)
+                .bindPopup('<b>' + zone.message + '</b><br>Evacuation recommended');
+            });
+
+            // Add scale control
+            L.control.scale({ imperial: false }).addTo(map);
+
+            // Fit map to show all impact zones with padding
+            const bounds = L.latLngBounds([
+                [${lat} - 2, ${lon} - 2], // Southwest corner
+                [${lat} + 2, ${lon} + 2]  // Northeast corner
+            ]);
+            
+            map.fitBounds(bounds, { padding: [20, 20] });
+
+            // Add layer control to switch between different map styles
+            const baseMaps = {
+                "Colorful Topo": colorfulTiles[0],
+                "Dark Theme": colorfulTiles[1],
+                "Satellite": colorfulTiles[2],
+                "Terrain": colorfulTiles[3]
+            };
+
+            L.control.layers(baseMaps).addTo(map);
+
+            console.log("Leaflet map initialized successfully with impact visualization");
+            
+            // Add some interactive features
+            map.on('zoomend', function() {
+                console.log("Current zoom level:", map.getZoom());
+            });
+
+            // Auto-adjust view if coordinates are near poles or extreme locations
+            function validateView() {
+                const currentZoom = map.getZoom();
+                const currentCenter = map.getCenter();
+                
+                // If we're too zoomed in on open ocean, zoom out a bit
+                if (currentZoom > 8) {
+                    const oceanThreshold = 6; // Adjust based on your needs
+                    map.setZoom(Math.min(currentZoom, oceanThreshold));
+                }
+            }
+
+            // Run validation after map loads
+            setTimeout(validateView, 1000);
+
+        </script>
+    </body>
+    </html>`;
+
+  iframe.srcdoc = mapHTML;
+  mapContainer.appendChild(closeButton);
+  mapContainer.appendChild(iframe);
+  document.body.appendChild(mapContainer);
+
+  console.log("Leaflet map container added to DOM");
+}
+
 function cancelScheduledCollisionForAsteroid(model) {
   const asteroidId = model.userData.asteroidId;
   const record = activeAnimations.get(asteroidId);
@@ -707,3 +1001,108 @@ earthCollideToggle.addEventListener('change', (e) => {
     cancelScheduledCollisionForAsteroid(selectedAsteroid);
   }
 });
+
+function createLoadingIndicator() {
+  loadingDiv = document.createElement('div');
+  loadingDiv.id = 'asteroid-loading';
+  loadingDiv.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 30px 40px;
+    border-radius: 15px;
+    border: 2px solid #3399ff;
+    z-index: 10000;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    min-width: 300px;
+    box-shadow: 0 0 30px rgba(51, 153, 255, 0.5);
+    backdrop-filter: blur(10px);
+  `;
+
+  loadingDiv.innerHTML = `
+    <div style="margin-bottom: 20px;">
+      <div style="font-size: 24px; margin-bottom: 10px; color: #3399ff;">🚀</div>
+      <h3 style="margin: 0 0 10px 0; color: #fff; font-size: 18px;">Loading Asteroids</h3>
+      <p style="margin: 0; color: #ccc; font-size: 14px;">Fetching near-Earth objects data...</p>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 15px;">
+      <div class="loading-spinner" style="
+        width: 40px;
+        height: 40px;
+        border: 4px solid #333;
+        border-top: 4px solid #3399ff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 15px;
+      "></div>
+      <div class="loading-text" style="font-size: 14px; color: #fff;">Initializing...</div>
+    </div>
+    <div class="progress-container" style="
+      background: #333;
+      border-radius: 10px;
+      height: 6px;
+      overflow: hidden;
+      margin-top: 10px;
+    ">
+      <div class="progress-bar" style="
+        background: linear-gradient(90deg, #3399ff, #33ccff);
+        height: 100%;
+        width: 0%;
+        transition: width 0.3s ease;
+        border-radius: 10px;
+      "></div>
+    </div>
+    <div class="progress-text" style="
+      font-size: 12px;
+      color: #ccc;
+      margin-top: 8px;
+    ">0%</div>
+  `;
+
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  `;
+  document.head.appendChild(style);
+
+  document.body.appendChild(loadingDiv);
+}
+
+function updateLoadingProgress(loaded, total, message = 'Loading asteroids...') {
+  if (!loadingDiv) return;
+
+  const progressBar = loadingDiv.querySelector('.progress-bar');
+  const progressText = loadingDiv.querySelector('.progress-text');
+  const loadingText = loadingDiv.querySelector('.loading-text');
+
+  if (loadingText) {
+    loadingText.textContent = message;
+  }
+
+  if (progressBar && progressText) {
+    const percentage = total > 0 ? Math.round((loaded / total) * 100) : 0;
+    progressBar.style.width = `${percentage}%`;
+    progressText.textContent = `${percentage}% (${loaded}/${total})`;
+  }
+}
+
+function hideLoadingIndicator() {
+  if (loadingDiv) {
+    loadingDiv.style.opacity = '0';
+    loadingDiv.style.transition = 'opacity 0.5s ease';
+    
+    setTimeout(() => {
+      if (loadingDiv && loadingDiv.parentNode) {
+        loadingDiv.parentNode.removeChild(loadingDiv);
+        loadingDiv = null;
+      }
+    }, 500);
+  }
+}
