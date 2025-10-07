@@ -23,7 +23,7 @@ const asteroidLabels = [];
 const asteroid_tool_box = document.getElementById("asteroid-tool-box");
 const asteroid_tools = document.getElementById("asteroid-tools");
 const activeAnimations = new Map();
-const collisionRadius = 25;
+const collisionRadius = 10;
 const asteroidMoveDuration = 2000;
 
 let asteroidsLoaded = 0;
@@ -112,7 +112,7 @@ window.onload = async () => {
           const model = gltf.scene;
           model.name = `asteroid-${asteroidData['id']}`;
           model.userData.asteroidId = asteroidData['id'];
-          const scaleFactor = 0.0002 * diameter;
+          const scaleFactor = 0.000085 * diameter;
           const pos = new THREE.Vector3(coord['x'], coord['y'], coord['z']).multiplyScalar(1000 * 6);
 
           model.position.copy(pos);
@@ -643,7 +643,12 @@ function animateMoveToEarth(model, duration, onComplete, cancelSignal) {
     const t = Math.min(elapsed / duration, 1);
     const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
     const newPos = lerpVec3(startPos, endPos, eased);
+    const cameraOffset = new THREE.Vector3(0, 0, 50);
     model.position.copy(newPos);
+    camera.position.copy(newPos.clone().add(cameraOffset));
+    camera.lookAt(newPos);
+    controls.target.copy(newPos);
+    controls.update();
 
     const dist = model.position.distanceTo(earthMesh.position);
     
